@@ -1,0 +1,57 @@
+### Test 1: Employee - View leave balances
+GET http://127.0.0.1:8000/api/balance/
+Authorization: Basic QmFsYWppQDEyMzphYmNkZWZnaGlqa2xt
+
+###
+
+### Test 2: Employee - View own leave requests
+GET http://127.0.0.1:8000/api/leaves/
+Authorization: Basic QmFsYWppQDEyMzphYmNkZWZnaGlqa2xt
+
+###
+
+### Test 3: Employee - Apply for leave
+POST http://127.0.0.1:8000/api/leaves/
+Authorization: Basic QmFsYWppQDEyMzphYmNkZWZnaGlqa2xt
+Content-Type: application/json
+
+{
+    "leave_type": 1,
+    "start_date": "2026-05-01",
+    "end_date": "2026-05-03",
+    "reason": "Personal work"
+}
+
+###
+
+### Test 4: Employee - Cancel a leave request
+POST http://127.0.0.1:8000/api/leaves/1/cancel/
+Authorization: Basic QmFsYWppQDEyMzphYmNkZWZnaGlqa2xt
+
+###
+
+### Test 5: Manager - View pending requests
+GET http://127.0.0.1:8000/api/manager/pending/
+Authorization: Basic TWFuYWdlcjE6YWJjZGVmZ2hpamtsbQ==
+
+###
+
+### Test 6: Manager - Approve a leave request
+POST http://127.0.0.1:8000/api/manager/1/approve/
+Authorization: Basic TWFuYWdlcjE6YWJjZGVmZ2hpamtsbQ==
+Content-Type: application/json
+
+{
+    "note": "Approved, enjoy your leave!"
+}
+
+###
+
+### Test 7: Manager - Reject a leave request
+POST http://127.0.0.1:8000/api/manager/2/reject/
+Authorization: Basic TWFuYWdlcjE6YWJjZGVmZ2hpamtsbQ==
+Content-Type: application/json
+
+{
+    "rejection_reason": "Project deadline is near"
+}
