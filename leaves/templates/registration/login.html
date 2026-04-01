@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Leave Management</title>
+    <style>
+        [data-theme="light"] {
+            --bg: #f0f4ff;
+            --card-bg: #ffffff;
+            --text: #333333;
+            --text-muted: #888888;
+            --border: #e0e0e0;
+            --input-bg: #f8f9ff;
+            --shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        [data-theme="dark"] {
+            --bg: #0f1117;
+            --card-bg: #1e2130;
+            --text: #e0e0e0;
+            --text-muted: #aaaaaa;
+            --border: #2e3350;
+            --input-bg: #252840;
+            --shadow: 0 10px 30px rgba(0,0,0,0.4);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; transition: background 0.3s, color 0.3s; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* ── Toggle Button ──────────────────────────────────── */
+        .toggle-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #1a73e8;
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            transition: all 0.3s;
+        }
+
+        .toggle-btn:hover { opacity: 0.9; transform: scale(1.05); }
+
+        /* ── Login Box ──────────────────────────────────────── */
+        .login-box {
+            background: var(--card-bg);
+            padding: 45px 40px;
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            width: 380px;
+            border: 1px solid var(--border);
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo .icon {
+            font-size: 48px;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .logo h2 {
+            color: #1a73e8;
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .logo p {
+            color: var(--text-muted);
+            font-size: 13px;
+            margin-top: 5px;
+        }
+
+        /* ── Form ───────────────────────────────────────────── */
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            background: var(--input-bg);
+            color: var(--text);
+            outline: none;
+            transition: border 0.2s;
+        }
+
+        .form-group input:focus {
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 3px rgba(26,115,232,0.15);
+        }
+
+        button[type="submit"] {
+            width: 100%;
+            padding: 13px;
+            background: linear-gradient(135deg, #1a73e8, #0d47a1);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+
+        button[type="submit"]:hover {
+            opacity: 0.95;
+            transform: translateY(-1px);
+        }
+
+        .error {
+            background: #fce4ec;
+            color: #c62828;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        [data-theme="dark"] .error {
+            background: #3a0f14;
+            color: #ef9a9a;
+        }
+
+        .footer-text {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Dark Mode Toggle -->
+    <button class="toggle-btn" onclick="toggleTheme()" id="themeBtn">
+        🌙 Dark Mode
+    </button>
+
+    <!-- Login Box -->
+    <div class="login-box">
+        <div class="logo">
+            <span class="icon">🏢</span>
+            <h2>Leave Management</h2>
+            <p>Sign in to your account</p>
+        </div>
+
+        {% if form.errors %}
+        <div class="error">
+            ❌ Invalid username or password. Please try again.
+        </div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" name="username" placeholder="Enter your username" required autofocus>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" name="password" placeholder="Enter your password" required>
+            </div>
+            <button type="submit">Login →</button>
+        </form>
+
+        <div class="footer-text">
+            Employee Leave Management System
+        </div>
+    </div>
+
+<script>
+    // Load saved theme
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateButton(savedTheme);
+
+    function toggleTheme() {
+        const current = document.documentElement.getAttribute('data-theme');
+        const next = current === 'light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('theme', next);
+        updateButton(next);
+    }
+
+    function updateButton(theme) {
+        const btn = document.getElementById('themeBtn');
+        if (theme === 'dark') {
+            btn.innerHTML = '☀️ Light Mode';
+        } else {
+            btn.innerHTML = '🌙 Dark Mode';
+        }
+    }
+</script>
+
+</body>
+</html>

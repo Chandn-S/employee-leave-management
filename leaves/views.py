@@ -12,6 +12,9 @@ from .serializers import (
     ApproveLeaveSerializer,
     RejectLeaveSerializer
 )
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from datetime import datetime
 
 
 # ─── Helper: Get Employee from request ────────────────────────
@@ -205,3 +208,27 @@ class ManagerRejectView(APIView):
             leave.save()
             return Response({"message": "Leave request rejected."})
         return Response(serializer.errors, status=400)
+    
+# ─── Calendar View ─────────────────────────────────────────────
+@login_required
+def calendar_view(request):
+    """Simple calendar view showing team leave schedule"""
+    current_year = datetime.now().year
+    current_month = datetime.now().strftime('%B')
+
+    # Get all leave requests for current year
+    leave_requests = LeaveRequest.objects.filter(
+        start_date__year=current_year
+    ).order_by('start_date')
+
+    context = {
+        'leave_requests': leave_requests,
+        'current_year': current_year,
+        'current_month': current_month,
+        'department': 'All Departments',
+        'total_leaves': leave_requests.count(),
+        'approved_count': leave_requests.filter(status='APPROVED').count(),
+        'pending_count': leave_requests.filter(status='PENDING').count(),
+        'rejected_count': leave_requests.filter(status='REJECTED').count(),
+    }
+    return render(request, 'leaves/calendar.html', context)

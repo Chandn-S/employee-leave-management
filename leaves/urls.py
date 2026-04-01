@@ -5,7 +5,8 @@ from .views import (
     LeaveBalanceView,
     ManagerPendingView,
     ManagerApproveView,
-    ManagerRejectView
+    ManagerRejectView,
+    calendar_view
 )
 
 urlpatterns = [
@@ -29,4 +30,8 @@ urlpatterns = [
 
     # POST → reject a leave request
     path('api/manager/<int:pk>/reject/', ManagerRejectView.as_view(), name='manager-reject'),
+
+    # ── Calendar View ──────────────────────────────────────────
+    # GET → team leave calendar
+    path('calendar/', calendar_view, name='calendar'),
 ]

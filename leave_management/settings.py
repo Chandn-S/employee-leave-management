@@ -31,6 +31,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    # 'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -60,7 +61,7 @@ ROOT_URLCONF = "leave_management.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "leaves" / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -148,3 +149,14 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'your-email@gmail.com'
 EMAIL_HOST_PASSWORD = 'your-password'
 DEFAULT_FROM_EMAIL = 'Leave Management System <your-email@gmail.com>'
+LOGIN_REDIRECT_URL = '/calendar/'
+
+
+# JAZZMIN_SETTINGS = {
+#     "site_title": "Leave Management",
+#     "site_header": "Leave Management",
+#     "site_brand": "🏢 LeaveMS",
+#     "welcome_sign": "Welcome to Leave Management System",
+#     "copyright": "Leave Management System",
+#     "theme": "flatly",
+# }
