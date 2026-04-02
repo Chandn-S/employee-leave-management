@@ -55,3 +55,65 @@ Content-Type: application/json
 {
     "rejection_reason": "Project deadline is near"
 }
+
+
+### BASHA_BHAI WORKFLOW TEST
+
+### Step 1: View leave balance
+GET http://127.0.0.1:8000/api/balance/
+Authorization: Basic YmFzaGFfYmhhaTphYmNkZWZnaGlqa2xt
+
+
+### Step 2: basha_bhai applies for leave
+POST http://127.0.0.1:8000/api/leaves/
+Authorization: Basic YmFzaGFfYmhhaTphYmNkZWZnaGlqa2xt
+Content-Type: application/json
+
+{
+    "leave_type": 1,
+    "start_date": "2026-05-05",
+    "end_date": "2026-05-07",
+    "reason": "Family vacation"
+}
+
+### Step 3: Manager views pending requests
+GET http://127.0.0.1:8000/api/manager/pending/
+Authorization: Basic TWFuYWdlcjE6YWJjZGVmZ2hpamtsbQ==
+
+
+
+### Step 4: Manager approves basha_bhai's leave
+POST http://127.0.0.1:8000/api/manager/3/approve/
+Authorization: Basic TWFuYWdlcjE6YWJjZGVmZ2hpamtsbQ==
+Content-Type: application/json
+
+{
+    "note": "Approved! Enjoy your vacation!"
+}
+
+
+### Step 5: Check balance after approval
+GET http://127.0.0.1:8000/api/balance/
+Authorization: Basic YmFzaGFfYmhhaTphYmNkZWZnaGlqa2xt
+
+
+### Step 6: basha_bhai cancels approved leave
+POST http://127.0.0.1:8000/api/leaves/3/cancel/
+Authorization: Basic YmFzaGFfYmhhaTphYmNkZWZnaGlqa2xt
+
+
+
+### Step 7: Check balance after cancellation
+GET http://127.0.0.1:8000/api/balance/
+Authorization: Basic YmFzaGFfYmhhaTphYmNkZWZnaGlqa2xt
+
+
+
+### Manager rejects basha_bhai's sick leave
+POST http://127.0.0.1:8000/api/manager/4/reject/
+Authorization: Basic TWFuYWdlcjE6YWJjZGVmZ2hpamtsbQ==
+Content-Type: application/json
+
+{
+    "rejection_reason": "Team is short staffed that week"
+}

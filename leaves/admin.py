@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Department, Employee, LeaveType, LeaveBalance, LeaveRequest
+from .models import Department, Employee, LeaveType, LeaveBalance, LeaveRequest, Holiday
 
 # Register all models so we can manage them in Django admin panel
 
@@ -22,3 +22,7 @@ class LeaveBalanceAdmin(admin.ModelAdmin):
 @admin.register(LeaveRequest)
 class LeaveRequestAdmin(admin.ModelAdmin):
     list_display = ['employee', 'leave_type', 'start_date', 'end_date', 'num_days', 'status']
+
+@admin.register(Holiday)
+class HolidayAdmin(admin.ModelAdmin):
+    list_display = ['name', 'date']

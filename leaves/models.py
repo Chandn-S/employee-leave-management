@@ -5,11 +5,21 @@ from datetime import date, timedelta
 
 # ─── Helper Function ───────────────────────────────────────────
 def count_working_days(start, end):
-    """Count working days between two dates, excluding weekends."""
+    """Count working days between two dates, 
+    excluding weekends and public holidays"""
+    # Get all holiday dates in this range
+    holiday_dates = set(
+        Holiday.objects.filter(
+            date__gte=start,
+            date__lte=end
+        ).values_list('date', flat=True)
+    )
+    
     days = 0
     current = start
     while current <= end:
-        if current.weekday() < 5:  # 0=Monday, 4=Friday
+        # Exclude weekends AND holidays
+        if current.weekday() < 5 and current not in holiday_dates:
             days += 1
         current += timedelta(days=1)
     return days
@@ -128,3 +138,13 @@ class LeaveRequest(models.Model):
 
     def __str__(self):
         return f"{self.employee} - {self.leave_type} ({self.start_date} to {self.end_date})"
+    
+
+# ─── Holiday Model ─────────────────────────────────────────────
+class Holiday(models.Model):
+    """Public holidays — these are excluded from working day count"""
+    name = models.CharField(max_length=100)
+    date = models.DateField(unique=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.date})"
