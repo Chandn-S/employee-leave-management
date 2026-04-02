@@ -3,11 +3,10 @@ from django.contrib.auth.models import User
 from datetime import date, timedelta
 
 
-# ─── Helper Function ───────────────────────────────────────────
+# i wrote this function to count only working days
+# it skips saturdays, sundays and public holidays
 def count_working_days(start, end):
-    """Count working days between two dates, 
-    excluding weekends and public holidays"""
-    # Get all holiday dates in this range
+    # first get all holidays between start and end date
     holiday_dates = set(
         Holiday.objects.filter(
             date__gte=start,
@@ -18,17 +17,19 @@ def count_working_days(start, end):
     days = 0
     current = start
     while current <= end:
-        # Exclude weekends AND holidays
+        # weekday() returns 0-4 for monday to friday
+        # so if its less than 5, its a working day
         if current.weekday() < 5 and current not in holiday_dates:
             days += 1
         current += timedelta(days=1)
     return days
 
 
-# ─── Department Model ──────────────────────────────────────────
+# Department has a name and optionally a head (who is an employee)
+# head can be null because when we first create a department
+# we might not have assigned a head yet
 class Department(models.Model):
     name = models.CharField(max_length=100)
-    # head is nullable because department may not have a head yet
     head = models.ForeignKey(
         'Employee',
         on_delete=models.SET_NULL,
@@ -41,9 +42,10 @@ class Department(models.Model):
         return self.name
 
 
-# ─── Employee Model ────────────────────────────────────────────
+# Employee is linked to Django's User model using OneToOne
+# this way we get login functionality for free
+# is_manager field is used to check if employee can approve leaves
 class Employee(models.Model):
-    # OneToOne with Django's built-in User model
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     department = models.ForeignKey(
         Department,
@@ -59,9 +61,10 @@ class Employee(models.Model):
         return self.user.get_full_name() or self.user.username
 
 
-# ─── LeaveType Model ───────────────────────────────────────────
+# LeaveType stores different types of leaves like casual, sick etc
+# max_days_per_year tells how many days are allowed per year
 class LeaveType(models.Model):
-    name = models.CharField(max_length=50)  # Casual, Sick, Earned, Unpaid
+    name = models.CharField(max_length=50)
     max_days_per_year = models.PositiveIntegerField()
     is_paid = models.BooleanField(default=True)
     carry_forward = models.BooleanField(default=False)
@@ -70,7 +73,10 @@ class LeaveType(models.Model):
         return self.name
 
 
-# ─── LeaveBalance Model ────────────────────────────────────────
+# LeaveBalance tracks how many leaves each employee has used
+# remaining_days is not stored in db, its calculated automatically
+# unique_together makes sure there is only one record per
+# employee per leave type per year
 class LeaveBalance(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
     leave_type = models.ForeignKey(LeaveType, on_delete=models.CASCADE)
@@ -78,23 +84,23 @@ class LeaveBalance(models.Model):
     allocated_days = models.PositiveIntegerField(default=0)
     used_days = models.PositiveIntegerField(default=0)
 
-    # remaining_days is a property — auto calculated, not stored in DB
     @property
     def remaining_days(self):
+        # simple calculation, no need to store this in db
         return self.allocated_days - self.used_days
 
     class Meta:
-        # One balance record per employee per leave type per year
         unique_together = ('employee', 'leave_type', 'year')
 
     def __str__(self):
         return f"{self.employee} - {self.leave_type} ({self.year})"
 
 
-# ─── LeaveRequest Model ────────────────────────────────────────
+# LeaveRequest is the main model of this project
+# it stores all leave applications made by employees
+# status can be PENDING, APPROVED, REJECTED or CANCELLED
 class LeaveRequest(models.Model):
 
-    # Status choices
     STATUS_CHOICES = [
         ('PENDING', 'Pending'),
         ('APPROVED', 'Approved'),
@@ -110,7 +116,6 @@ class LeaveRequest(models.Model):
     leave_type = models.ForeignKey(LeaveType, on_delete=models.CASCADE)
     start_date = models.DateField()
     end_date = models.DateField()
-    # num_days is auto calculated when saving
     num_days = models.PositiveIntegerField(default=0)
     reason = models.TextField()
     status = models.CharField(
@@ -119,7 +124,7 @@ class LeaveRequest(models.Model):
         default='PENDING'
     )
     applied_at = models.DateTimeField(auto_now_add=True)
-    # Manager who reviewed the request
+    # this will be filled when manager approves or rejects
     reviewed_by = models.ForeignKey(
         Employee,
         on_delete=models.SET_NULL,
@@ -131,18 +136,19 @@ class LeaveRequest(models.Model):
     rejection_reason = models.TextField(blank=True, null=True)
 
     def save(self, *args, **kwargs):
-        # Auto calculate num_days excluding weekends
+        # i overrode save() so that num_days gets calculated
+        # automatically whenever a leave request is saved
         if self.start_date and self.end_date:
             self.num_days = count_working_days(self.start_date, self.end_date)
         super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.employee} - {self.leave_type} ({self.start_date} to {self.end_date})"
-    
 
-# ─── Holiday Model ─────────────────────────────────────────────
+
+# Holiday model stores public holidays
+# these dates are excluded when counting working days
 class Holiday(models.Model):
-    """Public holidays — these are excluded from working day count"""
     name = models.CharField(max_length=100)
     date = models.DateField(unique=True)
 

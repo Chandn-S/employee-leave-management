@@ -17,7 +17,8 @@ from django.contrib.auth.decorators import login_required
 from datetime import datetime
 
 
-# ─── Helper: Get Employee from request ────────────────────────
+# helper function to get the employee object from the logged in user
+# returns None if the user doesn't have an employee profile
 def get_employee(request):
     try:
         return request.user.employee
@@ -25,39 +26,41 @@ def get_employee(request):
         return None
 
 
-# ─── Helper: Check if user is a manager ───────────────────────
+# helper function to check if the logged in user is a manager
 def is_manager(request):
     employee = get_employee(request)
     return employee and employee.is_manager
 
 
-# ═══════════════════════════════════════════════════════════════
-#  EMPLOYEE APIS
-# ═══════════════════════════════════════════════════════════════
-
+# this view handles two things:
+# GET - employee can see their own leave requests
+# POST - employee can apply for a new leave
 class LeaveListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        """Employee views their own leave requests"""
         employee = get_employee(request)
         if not employee:
             return Response({"error": "Employee profile not found."}, status=404)
+
+        # get all leaves for this employee, latest first
         leaves = LeaveRequest.objects.filter(employee=employee).order_by('-applied_at')
         serializer = LeaveRequestSerializer(leaves, many=True)
         return Response(serializer.data)
 
     def post(self, request):
-        """Employee applies for leave"""
         employee = get_employee(request)
         if not employee:
             return Response({"error": "Employee profile not found."}, status=404)
 
+        # pass request to serializer so it can access the employee
         serializer = LeaveRequestSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
+            # save the leave with status PENDING by default
             leave = serializer.save(employee=employee, status='PENDING')
 
-            # ── Send email notification to manager ─────────────
+            # send email to manager after employee applies
+            # i used try except so that even if email fails, the API still works
             try:
                 manager = Employee.objects.filter(
                     department=employee.department,
@@ -79,11 +82,15 @@ class LeaveListCreateView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+# employee can cancel their own leave request
+# but there are some rules:
+# 1. cannot cancel if already rejected or cancelled
+# 2. cannot cancel approved leave if start date has passed
+# 3. if approved and cancelled before start date, restore the balance
 class LeaveCancelView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
-        """Employee cancels their own leave request"""
         employee = get_employee(request)
         if not employee:
             return Response({"error": "Employee profile not found."}, status=404)
@@ -93,12 +100,15 @@ class LeaveCancelView(APIView):
         except LeaveRequest.DoesNotExist:
             return Response({"error": "Leave request not found."}, status=404)
 
+        # rule 1 - cant cancel rejected or already cancelled leave
         if leave.status in ['REJECTED', 'CANCELLED']:
             return Response({"error": f"Cannot cancel a {leave.status} leave."}, status=400)
 
+        # rule 2 - cant cancel approved leave after start date
         if leave.status == 'APPROVED' and leave.start_date <= timezone.now().date():
             return Response({"error": "Cannot cancel approved leave after start date has passed."}, status=400)
 
+        # rule 3 - if approved and cancelled before start date, give back the balance
         if leave.status == 'APPROVED':
             try:
                 balance = LeaveBalance.objects.get(
@@ -116,49 +126,53 @@ class LeaveCancelView(APIView):
         return Response({"message": "Leave request cancelled successfully."})
 
 
+# employee can view their leave balances for current year
 class LeaveBalanceView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        """Employee views their own leave balances"""
         employee = get_employee(request)
         if not employee:
             return Response({"error": "Employee profile not found."}, status=404)
+
         current_year = timezone.now().year
         balances = LeaveBalance.objects.filter(employee=employee, year=current_year)
         serializer = LeaveBalanceSerializer(balances, many=True)
         return Response(serializer.data)
 
 
-# ═══════════════════════════════════════════════════════════════
-#  MANAGER APIS
-# ═══════════════════════════════════════════════════════════════
-
+# manager can see all pending leave requests from their department
 class ManagerPendingView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        """Manager views all pending leave requests from their department"""
+        # first check if the logged in user is actually a manager
         if not is_manager(request):
             return Response({"error": "Only managers can access this."}, status=403)
+
         manager = get_employee(request)
+        # only show pending requests from same department
         pending = LeaveRequest.objects.filter(
             status='PENDING',
             employee__department=manager.department
         ).order_by('applied_at')
+
         serializer = LeaveRequestSerializer(pending, many=True)
         return Response(serializer.data)
 
 
+# manager approves a leave request
+# when approved, we deduct the days from employee's leave balance
 class ManagerApproveView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
-        """Manager approves a leave request"""
         if not is_manager(request):
             return Response({"error": "Only managers can access this."}, status=403)
+
         manager = get_employee(request)
 
+        # make sure the leave exists and belongs to manager's department
         try:
             leave = LeaveRequest.objects.get(pk=pk, status='PENDING', employee__department=manager.department)
         except LeaveRequest.DoesNotExist:
@@ -166,6 +180,7 @@ class ManagerApproveView(APIView):
 
         serializer = ApproveLeaveSerializer(data=request.data)
         if serializer.is_valid():
+            # deduct leave days from balance
             try:
                 balance = LeaveBalance.objects.get(
                     employee=leave.employee,
@@ -177,6 +192,7 @@ class ManagerApproveView(APIView):
             except LeaveBalance.DoesNotExist:
                 return Response({"error": "Leave balance not found."}, status=400)
 
+            # update the leave request status
             leave.status = 'APPROVED'
             leave.reviewed_by = manager
             leave.reviewed_at = timezone.now()
@@ -185,13 +201,15 @@ class ManagerApproveView(APIView):
         return Response(serializer.errors, status=400)
 
 
+# manager rejects a leave request
+# no balance change when rejecting, just update status and save reason
 class ManagerRejectView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
-        """Manager rejects a leave request"""
         if not is_manager(request):
             return Response({"error": "Only managers can access this."}, status=403)
+
         manager = get_employee(request)
 
         try:
@@ -208,19 +226,21 @@ class ManagerRejectView(APIView):
             leave.save()
             return Response({"message": "Leave request rejected."})
         return Response(serializer.errors, status=400)
-    
-# ─── Calendar View ─────────────────────────────────────────────
+
+
+# simple calendar view to show all team leaves
+# only logged in users can see this
 @login_required
 def calendar_view(request):
-    """Simple calendar view showing team leave schedule"""
     current_year = datetime.now().year
     current_month = datetime.now().strftime('%B')
 
-    # Get all leave requests for current year
+    # get all leave requests for this year
     leave_requests = LeaveRequest.objects.filter(
         start_date__year=current_year
     ).order_by('start_date')
 
+    # count leaves by status for the stats cards
     context = {
         'leave_requests': leave_requests,
         'current_year': current_year,
